@@ -1,8 +1,8 @@
 package com.example.mini_ai_bot.model;
 
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -14,7 +14,7 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Document(collection = "data")
+@Document(collection = "chat_sessions") // Better collection name for clarity
 public class AIModel {
 
     @Id
@@ -26,18 +26,18 @@ public class AIModel {
 
     private String name;  // User's name or Session name
 
-    private String title;
+    private String name;  // Can be used later if you add user accounts
+    private String title; // Can be used for the sidebar history
 
-    // FIX: Use a dedicated Message class, not the parent AIModel class
     private List<ChatMessage> messages = new ArrayList<>();
 
-    // Inner class to represent the actual text bubbles
+    // Inner class representing individual chat bubbles
     @Getter
     @Setter
     @AllArgsConstructor
     @NoArgsConstructor
     public static class ChatMessage {
         private String role;    // "user" or "model"
-        private String content; // The text content
+        private String content; // The actual message text
     }
 }

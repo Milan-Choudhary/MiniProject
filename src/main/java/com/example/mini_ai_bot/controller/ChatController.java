@@ -13,7 +13,6 @@ public class ChatController {
 
     private final ChatService chatService;
 
-    // Constructor Injection is preferred over @Autowired on fields
     public ChatController(ChatService chatService) {
         this.chatService = chatService;
     }
@@ -40,5 +39,10 @@ public class ChatController {
     @GetMapping("/conversations/user/{userId}/topic/{topic}")
     public List<AIModel> getUserConversationsByTopic(@PathVariable String userId, @PathVariable String topic) {
         return chatService.getConversationsByUserIdAndTopic(userId, topic);
+    }
+
+    @GetMapping("/recent")
+    public List<AIModel> getRecentSessions() {
+        return chatService.getRecentSessions();
     }
 }
