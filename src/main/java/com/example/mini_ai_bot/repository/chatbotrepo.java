@@ -15,4 +15,10 @@ public interface chatbotrepo extends MongoRepository<AIModel, String> {
 
     // Custom query to find a session by title (useful for a sidebar list)
     List<AIModel> findByTitleContainingIgnoreCase(String title);
+
+    // Find all sessions for a user
+    List<AIModel> findByUserId(String userId);
+
+    // Find all sessions for a user by topic
+    List<AIModel> findByUserIdAndTopic(String userId, String topic);
 }

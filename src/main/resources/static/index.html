@@ -622,7 +622,6 @@
 
 <script>
     const sessionId = "session-" + Math.random().toString(36).slice(2, 11);
-
     const chatBox = document.getElementById("chatBox");
     const userInput = document.getElementById("userInput");
     const sendBtn = document.getElementById("sendBtn");
@@ -645,6 +644,10 @@
             event.preventDefault();
             sendMessage();
         }
+    });
+
+    function handleEnter(event) {
+        if (event.key === 'Enter') sendMessage();
     }
 
     /* ---------- Send suggestion ---------- */
@@ -772,7 +775,6 @@
             } else {
                 addMessage("⚠️ Server responded with error " + response.status, 'bot');
             }
-
         } catch (error) {
             hideTyping();
             addMessage("⚠️ Unable to reach the AI. Please check your connection.", 'bot');
