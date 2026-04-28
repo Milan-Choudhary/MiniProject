@@ -14,22 +14,26 @@ import java.util.Map;
 public class ChatService {
 
     private final chatbotrepo repository;
+    private final ConversationCacheService cacheService;
     private final RestTemplate restTemplate;
 
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    // UPDATE: Changed model from 'gemini-1.5-flash' (retired) to 'gemini-2.5-flash' (active)
     private static final String GEMINI_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=";
 
-    public ChatService(chatbotrepo repository) {
+    public ChatService(chatbotrepo repository, ConversationCacheService cacheService) {
         this.repository = repository;
+        this.cacheService = cacheService;
         this.restTemplate = new RestTemplate();
     }
 
     public String askGemini(String sessionId, String userMessage) {
-        // 1. Manage Session
-        AIModel session = repository.findById(sessionId).orElse(new AIModel());
+        // 1. Manage Session — check Redis cache first, then fall back to MongoDB
+        AIModel session = cacheService.getSession(sessionId);
+        if (session == null) {
+            session = repository.findById(sessionId).orElse(new AIModel());
+        }
         if (session.getId() == null) {
             session.setId(sessionId);
         }
@@ -53,14 +57,19 @@ public class ChatService {
 
             String botResponse = extractTextFromResponse(response);
 
-            // 4. Save History
+            // 4. Save History to MongoDB, then update Redis cache
             session.getMessages().add(new AIModel.ChatMessage("model", botResponse));
             repository.save(session);
+            cacheService.cacheSession(session);
 
             return botResponse;
         } catch (Exception e) {
             return "Error calling Gemini API: " + e.getMessage();
         }
+    }
+
+    public List<AIModel> getRecentSessions() {
+        return cacheService.getRecentSessions();
     }
 
     private String extractTextFromResponse(Map<String, Object> response) {
