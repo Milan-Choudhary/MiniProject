@@ -36,14 +36,14 @@ public class ChatService {
         }
         if (session.getId() == null) {
             session.setId(sessionId);
+            // Optionally set a title for the sidebar based on the first message
+            session.setTitle(userMessage.length() > 20 ? userMessage.substring(0, 20) + "..." : userMessage);
         }
 
-        // 2. Add User Message
+        // 2. Save User Message to History
         session.getMessages().add(new AIModel.ChatMessage("user", userMessage));
 
-        // 3. Prepare API Call
-        String url = GEMINI_URL + apiKey;
-
+        // 3. Prepare the payload for Gemini API
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("contents", List.of(
                 Map.of("parts", List.of(
@@ -52,9 +52,12 @@ public class ChatService {
         ));
 
         try {
+            // 4. Make the API Call
+            String url = GEMINI_URL + apiKey;
             @SuppressWarnings("unchecked")
             Map<String, Object> response = restTemplate.postForObject(url, requestBody, Map.class);
 
+            // 5. Extract and format the response
             String botResponse = extractTextFromResponse(response);
 
             // 4. Save History to MongoDB, then update Redis cache
@@ -63,8 +66,21 @@ public class ChatService {
             cacheService.cacheSession(session);
 
             return botResponse;
+
         } catch (Exception e) {
-            return "Error calling Gemini API: " + e.getMessage();
+            // This is where the advanced error handling goes
+            String errorMessage = e.getMessage();
+            System.err.println("Gemini API Error: " + errorMessage);
+
+            if (errorMessage != null && errorMessage.contains("503")) {
+                return "⚠️ **High Demand:** The AI is currently experiencing high traffic. Please wait a few moments and try again.";
+            } else if (errorMessage != null && errorMessage.contains("401")) {
+                return "⚠️ **Authentication Error:** Please check if your Gemini API key is valid.";
+            } else if (errorMessage != null && errorMessage.contains("404")) {
+                return "⚠️ **Not Found:** The model endpoint is incorrect. Please check the model URL.";
+            }
+
+            return "Sorry, I encountered an error while processing your request. Please try again.";
         }
     }
 
@@ -79,6 +95,8 @@ public class ChatService {
             }
 
             List<?> candidates = (List<?>) response.get("candidates");
+            if (candidates.isEmpty()) return "No candidates found.";
+
             Map<?, ?> firstCandidate = (Map<?, ?>) candidates.get(0);
             Map<?, ?> content = (Map<?, ?>) firstCandidate.get("content");
             List<?> parts = (List<?>) content.get("parts");
@@ -86,7 +104,7 @@ public class ChatService {
 
             return (String) firstPart.get("text");
         } catch (Exception e) {
-            return "AI responded, but the data format was unexpected.";
+            return "AI responded, but the text could not be extracted.";
         }
     }
 }

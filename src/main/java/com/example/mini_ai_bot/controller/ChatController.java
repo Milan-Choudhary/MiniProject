@@ -22,6 +22,7 @@ public class ChatController {
     public String ask(@RequestBody Map<String, String> payload) {
         String sessionId = payload.get("sessionId");
         String message = payload.get("message");
+        //New Lines
 
         if (sessionId == null || message == null) {
             return "Error: Please provide both sessionId and message in the request body.";
