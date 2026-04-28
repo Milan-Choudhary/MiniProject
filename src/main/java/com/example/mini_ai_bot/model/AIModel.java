@@ -26,7 +26,6 @@ public class AIModel {
 
     private String name;  // User's name or Session name
 
-    private String name;  // Can be used later if you add user accounts
     private String title; // Can be used for the sidebar history
 
     private List<ChatMessage> messages = new ArrayList<>();
