@@ -18,7 +18,13 @@ import java.util.List;
 public class AIModel {
 
     @Id
-    private String id; // This will map to the sessionId from your frontend
+    private String id;
+
+    private String userId;
+
+    private String topic;
+
+    private String name;  // User's name or Session name
 
     private String name;  // Can be used later if you add user accounts
     private String title; // Can be used for the sidebar history

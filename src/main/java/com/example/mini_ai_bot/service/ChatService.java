@@ -28,28 +28,48 @@ public class ChatService {
         this.restTemplate = new RestTemplate();
     }
 
-    public String askGemini(String sessionId, String userMessage) {
-        // 1. Manage Session — check Redis cache first, then fall back to MongoDB
-        AIModel session = cacheService.getSession(sessionId);
-        if (session == null) {
-            session = repository.findById(sessionId).orElse(new AIModel());
-        }
+    public String askGemini(String sessionId, String userId, String topic, String userMessage) {
+        // 1. Manage Session
+        AIModel session = repository.findById(sessionId).orElse(new AIModel());
         if (session.getId() == null) {
             session.setId(sessionId);
             // Optionally set a title for the sidebar based on the first message
             session.setTitle(userMessage.length() > 20 ? userMessage.substring(0, 20) + "..." : userMessage);
         }
+        if (session.getUserId() == null && userId != null) {
+            session.setUserId(userId);
+        }
+        if (session.getTopic() == null && topic != null) {
+            session.setTopic(topic);
+        }
 
         // 2. Save User Message to History
         session.getMessages().add(new AIModel.ChatMessage("user", userMessage));
 
-        // 3. Prepare the payload for Gemini API
+        // 3. Prepare API Call
+        String url = GEMINI_URL + apiKey;
+
+        List<Map<String, Object>> contents = new java.util.ArrayList<>();
+
+        // Context Window: Add all previous messages
+        for (AIModel.ChatMessage msg : session.getMessages()) {
+            // Ensure content is not null to prevent API errors
+            String textContent = msg.getContent() != null ? msg.getContent() : "";
+            contents.add(Map.of(
+                    "role", msg.getRole() != null ? msg.getRole() : "user",
+                    "parts", List.of(Map.of("text", textContent))
+            ));
+        }
+
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("contents", List.of(
-                Map.of("parts", List.of(
-                        Map.of("text", userMessage)
-                ))
-        ));
+        requestBody.put("contents", contents);
+
+        // Proper Gemini API System Instruction mapping
+        if (topic != null && !topic.isEmpty()) {
+            requestBody.put("system_instruction", Map.of(
+                    "parts", List.of(Map.of("text", "You are an expert on the topic of " + topic + ". Please keep the conversation focused on this topic."))
+            ));
+        }
 
         try {
             // 4. Make the API Call
@@ -106,5 +126,13 @@ public class ChatService {
         } catch (Exception e) {
             return "AI responded, but the text could not be extracted.";
         }
+    }
+
+    public List<AIModel> getConversationsByUserId(String userId) {
+        return repository.findByUserId(userId);
+    }
+
+    public List<AIModel> getConversationsByUserIdAndTopic(String userId, String topic) {
+        return repository.findByUserIdAndTopic(userId, topic);
     }
 }
