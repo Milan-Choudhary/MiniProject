@@ -20,6 +20,10 @@ public class AIModel {
     @Id
     private String id;
 
+    private String userId;
+
+    private String topic;
+
     private String name;  // User's name or Session name
 
     private String title;
