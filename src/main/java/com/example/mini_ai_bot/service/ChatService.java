@@ -27,11 +27,17 @@ public class ChatService {
         this.restTemplate = new RestTemplate();
     }
 
-    public String askGemini(String sessionId, String userMessage) {
+    public String askGemini(String sessionId, String userId, String topic, String userMessage) {
         // 1. Manage Session
         AIModel session = repository.findById(sessionId).orElse(new AIModel());
         if (session.getId() == null) {
             session.setId(sessionId);
+        }
+        if (session.getUserId() == null && userId != null) {
+            session.setUserId(userId);
+        }
+        if (session.getTopic() == null && topic != null) {
+            session.setTopic(topic);
         }
 
         // 2. Add User Message
@@ -40,12 +46,27 @@ public class ChatService {
         // 3. Prepare API Call
         String url = GEMINI_URL + apiKey;
 
+        List<Map<String, Object>> contents = new java.util.ArrayList<>();
+
+        // Context Window: Add all previous messages
+        for (AIModel.ChatMessage msg : session.getMessages()) {
+            // Ensure content is not null to prevent API errors
+            String textContent = msg.getContent() != null ? msg.getContent() : "";
+            contents.add(Map.of(
+                    "role", msg.getRole() != null ? msg.getRole() : "user",
+                    "parts", List.of(Map.of("text", textContent))
+            ));
+        }
+
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("contents", List.of(
-                Map.of("parts", List.of(
-                        Map.of("text", userMessage)
-                ))
-        ));
+        requestBody.put("contents", contents);
+
+        // Proper Gemini API System Instruction mapping
+        if (topic != null && !topic.isEmpty()) {
+            requestBody.put("system_instruction", Map.of(
+                    "parts", List.of(Map.of("text", "You are an expert on the topic of " + topic + ". Please keep the conversation focused on this topic."))
+            ));
+        }
 
         try {
             @SuppressWarnings("unchecked")
@@ -79,5 +100,13 @@ public class ChatService {
         } catch (Exception e) {
             return "AI responded, but the data format was unexpected.";
         }
+    }
+
+    public List<AIModel> getConversationsByUserId(String userId) {
+        return repository.findByUserId(userId);
+    }
+
+    public List<AIModel> getConversationsByUserIdAndTopic(String userId, String topic) {
+        return repository.findByUserIdAndTopic(userId, topic);
     }
 }
