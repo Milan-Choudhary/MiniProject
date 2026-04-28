@@ -14,23 +14,26 @@ import java.util.Map;
 public class ChatService {
 
     private final chatbotrepo repository;
+    private final ConversationCacheService cacheService;
     private final RestTemplate restTemplate;
 
     @Value("${gemini.api.key}")
     private String apiKey;
 
-
-    // Using the working Gemini 2.5 Flash endpoint
     private static final String GEMINI_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=";
 
-    public ChatService(chatbotrepo repository) {
+    public ChatService(chatbotrepo repository, ConversationCacheService cacheService) {
         this.repository = repository;
+        this.cacheService = cacheService;
         this.restTemplate = new RestTemplate();
     }
 
     public String askGemini(String sessionId, String userMessage) {
-        // 1. Retrieve or Create Session
-        AIModel session = repository.findById(sessionId).orElse(new AIModel());
+        // 1. Manage Session — check Redis cache first, then fall back to MongoDB
+        AIModel session = cacheService.getSession(sessionId);
+        if (session == null) {
+            session = repository.findById(sessionId).orElse(new AIModel());
+        }
         if (session.getId() == null) {
             session.setId(sessionId);
             // Optionally set a title for the sidebar based on the first message
@@ -57,9 +60,10 @@ public class ChatService {
             // 5. Extract and format the response
             String botResponse = extractTextFromResponse(response);
 
-            // 6. Save Bot Response to History and update DB
+            // 4. Save History to MongoDB, then update Redis cache
             session.getMessages().add(new AIModel.ChatMessage("model", botResponse));
             repository.save(session);
+            cacheService.cacheSession(session);
 
             return botResponse;
 
@@ -80,7 +84,10 @@ public class ChatService {
         }
     }
 
-    // Helper method to parse Google's nested JSON response
+    public List<AIModel> getRecentSessions() {
+        return cacheService.getRecentSessions();
+    }
+
     private String extractTextFromResponse(Map<String, Object> response) {
         try {
             if (response == null || !response.containsKey("candidates")) {

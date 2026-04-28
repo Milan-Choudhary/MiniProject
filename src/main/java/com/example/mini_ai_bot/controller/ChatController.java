@@ -1,7 +1,10 @@
 package com.example.mini_ai_bot.controller;
 
+import com.example.mini_ai_bot.model.AIModel;
 import com.example.mini_ai_bot.service.ChatService;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -11,7 +14,6 @@ public class ChatController {
 
     private final ChatService chatService;
 
-    // Constructor Injection is preferred over @Autowired on fields
     public ChatController(ChatService chatService) {
         this.chatService = chatService;
     }
@@ -27,5 +29,10 @@ public class ChatController {
         }
 
         return chatService.askGemini(sessionId, message);
+    }
+
+    @GetMapping("/recent")
+    public List<AIModel> getRecentSessions() {
+        return chatService.getRecentSessions();
     }
 }
